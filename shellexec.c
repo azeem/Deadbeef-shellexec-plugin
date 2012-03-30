@@ -125,7 +125,6 @@ shx_find_sep (char *str) {
 void
 shx_save_actions(Shx_action_t *action_list)
 {
-    trace(">>> inside shx_save_actions\n");
     deadbeef->conf_remove_items("shellexec.");
     Shx_action_t *action = action_list;
     int i = 0;
@@ -160,6 +159,7 @@ shx_save_actions(Shx_action_t *action_list)
         }
         deadbeef->conf_set_str(conf_key, conf_line);
         action = (Shx_action_t*)action->parent.next;
+        i++;
     }
     deadbeef->conf_save();
 }
@@ -167,7 +167,6 @@ shx_save_actions(Shx_action_t *action_list)
 Shx_action_t*
 shx_get_actions (DB_plugin_action_callback_t callback, int omit_disabled)
 {
-    trace(">>> inside shx_get_actions\n");
     Shx_action_t *action_list = NULL;
     Shx_action_t *prev = NULL;
     DB_conf_item_t *item = deadbeef->conf_find ("shellexec.", NULL);
@@ -209,7 +208,7 @@ shx_get_actions (DB_plugin_action_callback_t callback, int omit_disabled)
             flags = "local";
         }
 
-        if (strstr (flags, "disabled") && omit_disabled) {
+        if (strstr (flags, "disabled") && omit_disabled != 0) {
             item = deadbeef->conf_find ("shellexec.", item);
             continue;
         }
@@ -237,6 +236,10 @@ shx_get_actions (DB_plugin_action_callback_t callback, int omit_disabled)
         if (strstr (flags, "playlist"))
             action->parent.flags |= DB_ACTION_PLAYLIST;
 
+        if (strstr (flags, "disabled")) {
+            action->parent.flags |= DB_ACTION_DISABLED;
+        }
+
         if (prev)
             prev->parent.next = (DB_plugin_action_t *)action;
         prev = action;
@@ -253,7 +256,6 @@ static int
 shx_start ()
 {
     actions = shx_get_actions((DB_plugin_action_callback_t)shx_callback, 1);
-    shx_save_actions(actions);
     return 0;
 }
 

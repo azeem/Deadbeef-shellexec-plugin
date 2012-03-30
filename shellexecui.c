@@ -58,10 +58,13 @@ on_add_button_clicked (GtkButton *button,
     GtkTreeIter iter;
 
     Shx_action_t *action = calloc(sizeof(Shx_action_t), 1);
+    trace(">>> clicked %s", actions->parent.name);
     if(!actions) {
+        trace(">>> First item\n");
         actions = action;
     }
     else {
+        trace(">>> adding new item\n");
         Shx_action_t *last = actions;
         while(last->parent.next) {
             last = (Shx_action_t*)last->parent.next;
@@ -154,17 +157,13 @@ void on_cell_toggled(GtkCellRendererToggle *cell, gchar *path_string,
 GtkTreeModel *init_treemodel() {
     GtkListStore *liststore;
     GtkTreeIter iter;
-    //Shx_action_t *actions, *action;
-    //uint32_t flags;
 
     liststore = gtk_list_store_new(COL_COUNT, 
                                    G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING,
                                    G_TYPE_BOOLEAN, G_TYPE_BOOLEAN, G_TYPE_BOOLEAN,
                                    G_TYPE_BOOLEAN, G_TYPE_BOOLEAN, G_TYPE_POINTER);
 
-    trace("About to get Actions\n");
     actions = shellexec_plugin->shx_get_actions(NULL, 0);
-    trace("got Actions\n");
     Shx_action_t *action = actions;
     while(action) {
         gtk_list_store_append(liststore, &iter);
