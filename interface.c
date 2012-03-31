@@ -51,7 +51,7 @@ create_shellexec_conf_dialog (void)
 
   hbox1 = gtk_hbox_new (FALSE, 7);
   gtk_widget_show (hbox1);
-  gtk_box_pack_start (GTK_BOX (dialog_vbox), hbox1, FALSE, TRUE, 0);
+  gtk_box_pack_start (GTK_BOX (dialog_vbox), hbox1, FALSE, TRUE, 3);
 
   add_button = gtk_button_new_with_mnemonic (_("Add"));
   gtk_widget_show (add_button);

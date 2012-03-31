@@ -103,7 +103,7 @@ on_add_button_clicked (GtkButton *button,
 
     action->parent.name = strdup(name);
     action->parent.title = strdup("Shell Command");
-    action->shcommand = strdup("xdg-open \"http://deadbeef.sourceforge.net/\"");
+    action->shcommand = strdup("notify-send \"%b\"");
     action->shx_flags |= SHX_ACTION_LOCAL_ONLY;
     action->parent.flags |= DB_ACTION_SINGLE_TRACK;
     gtk_list_store_append(liststore, &iter);
@@ -270,6 +270,7 @@ init_treeview() {
                      GUINT_TO_POINTER(COL_NAME));
     gtk_tree_view_insert_column_with_attributes(treeview, -1, "Name", cell_renderer,
                                                 "text", COL_NAME, NULL);
+    gtk_cell_renderer_set_fixed_size(cell_renderer, 50, -1);
 
 
     cell_renderer = gtk_cell_renderer_text_new();
@@ -278,6 +279,7 @@ init_treeview() {
                      GUINT_TO_POINTER(COL_TITLE));
     gtk_tree_view_insert_column_with_attributes(treeview, -1, "Title", cell_renderer,
                                                 "text", COL_TITLE, NULL);
+    gtk_cell_renderer_set_fixed_size(cell_renderer, 150, -1);
 
     cell_renderer = gtk_cell_renderer_text_new();
     g_object_set(cell_renderer, "editable", TRUE, NULL);
@@ -285,6 +287,7 @@ init_treeview() {
                      GUINT_TO_POINTER(COL_SHCMD));
     gtk_tree_view_insert_column_with_attributes(treeview, -1, "Shell Command", cell_renderer,
                                                 "text", COL_SHCMD, NULL);
+    gtk_cell_renderer_set_fixed_size(cell_renderer, 200, -1);
 
     cell_renderer = gtk_cell_renderer_toggle_new();
     g_object_set(cell_renderer, "activatable", TRUE, NULL);
@@ -318,16 +321,27 @@ init_treeview() {
     cell_renderer = gtk_cell_renderer_toggle_new();
     g_object_set(cell_renderer, "activatable", TRUE, NULL);
     g_signal_connect(cell_renderer, "toggled", G_CALLBACK(on_cell_toggled),
-                     GUINT_TO_POINTER(COL_DISABLED));
-    gtk_tree_view_insert_column_with_attributes(treeview, -1, "Disabled", cell_renderer,
-                                                "active", COL_DISABLED, NULL);
+                     GUINT_TO_POINTER(COL_PLAYLIST));
+    gtk_tree_view_insert_column_with_attributes(treeview, -1, "Playlist", cell_renderer,
+                                                "active", COL_PLAYLIST, NULL);
 
     cell_renderer = gtk_cell_renderer_toggle_new();
     g_object_set(cell_renderer, "activatable", TRUE, NULL);
     g_signal_connect(cell_renderer, "toggled", G_CALLBACK(on_cell_toggled),
-                     GUINT_TO_POINTER(COL_PLAYLIST));
-    gtk_tree_view_insert_column_with_attributes(treeview, -1, "Playlist", cell_renderer,
-                                                "active", COL_PLAYLIST, NULL);
+                     GUINT_TO_POINTER(COL_DISABLED));
+    gtk_tree_view_insert_column_with_attributes(treeview, -1, "Disabled", cell_renderer,
+                                                "active", COL_DISABLED, NULL);
+
+
+    GList *column_list = gtk_tree_view_get_columns(treeview);
+    while(column_list) {
+        GtkTreeViewColumn *column = GTK_TREE_VIEW_COLUMN(column_list->data);
+        GtkWidget *label = gtk_label_new(gtk_tree_view_column_get_title(column));
+        gtk_widget_modify_font(label, pango_font_description_from_string("sans normal 8"));
+        gtk_tree_view_column_set_widget(column, label);
+        gtk_widget_show(label);        
+        column_list = column_list->next;
+    }
 
     treemodel = init_treemodel();
     gtk_tree_view_set_model(treeview, treemodel);
