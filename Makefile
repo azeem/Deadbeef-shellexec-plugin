@@ -2,9 +2,9 @@ OUT=shellexec.so
 UIOUT=shellexecui.so
 
 CC?=gcc
-CFLAGS+=-g3 -O0 -Wall -fPIC -D_GNU_SOURCE ${INCLUDE}
+CFLAGS+=-Wall -fPIC -D_GNU_SOURCE ${INCLUDE}
 LDFLAGS+=-shared 
-
+debug: CFLAGS +=-g3 -O0 -DDEBUG
 SOURCES=shellexec.c
 UISOURCES=interface.c shellexecui.c support.c
 
@@ -14,7 +14,9 @@ UIOBJECTS=$(UISOURCES:.c=.o)
 $(UIOBJECTS):GTK_CFLAGS=`pkg-config --cflags gtk+-2.0`
 GTK_LDFLAGS=`pkg-config --libs gtk+-2.0`
 
-all: $(OUT) $(UIOUT) install
+all: $(OUT) $(UIOUT)
+
+debug: $(OUT) $(UIOUT)
 
 $(OUT): $(OBJECTS)
 	$(CC) $(LDFLAGS) $(OBJECTS) -o $@
@@ -26,8 +28,13 @@ $(UIOUT): $(UIOBJECTS)
 	$(CC) $(CFLAGS) $(GTK_CFLAGS) $< -c -o $@
 
 install: $(OUT) $(UIOUT)
-	cp $(OUT) ~/.local/lib/deadbeef/
-	cp $(UIOUT) ~/.local/lib/deadbeef/
+	mkdir -p $(HOME)/.local/lib/deadbeef/
+	cp $(OUT) $(HOME)/.local/lib/deadbeef/
+	cp $(UIOUT) $(HOME)/.local/lib/deadbeef/
+
+uninstall:
+	rm $(HOME)/.local/lib/deadbeef/$(OUT)
+	rm $(HOME)/.local/lib/deadbeef/$(UIOUT)
 
 run: install
 	deadbeef
