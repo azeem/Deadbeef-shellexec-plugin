@@ -32,9 +32,11 @@
         configuration
 
     @flags comma-separated of command flags, allowed flags are:
-        single - command allowed only for single track
-        local - command allowed only for local files
-        remote - command allowed only for non-local files
+        single - command allowed for single track
+        multiple - command allowerd for multiple tracks
+        local - command allowed for local files
+        remote - command allowed for non-local files
+        playlist - command allowed for playlist tabs
         disabled - ignore command
 */
 #ifdef HAVE_CONFIG_H
@@ -150,9 +152,11 @@ shx_save_actions(Shx_action_t *action_list)
         if(action->parent.flags & DB_ACTION_PLAYLIST) {
             strcat(conf_line, "playlist,");
         }
-        if(!(action->parent.flags & DB_ACTION_ALLOW_MULTIPLE_TRACKS) ||
-            (action->parent.flags & DB_ACTION_SINGLE_TRACK)) {
+        if(action->parent.flags & DB_ACTION_SINGLE_TRACK) {
             strcat(conf_line, "single,");
+        }
+        if(action->parent.flags & DB_ACTION_ALLOW_MULTIPLE_TRACKS) {
+            strcat(conf_line, "multiple,");
         }
         if(action->parent.flags & DB_ACTION_DISABLED) {
             strcat(conf_line, "disabled,");
@@ -205,10 +209,10 @@ shx_get_actions (DB_plugin_action_callback_t callback, int omit_disabled)
             name = "noname";
         }
         if (!flags) {
-            flags = "local";
+            flags = "local,single";
         }
 
-        if (strstr (flags, "disabled") && omit_disabled != 0) {
+        if (strstr (flags, "disabled") && omit_disabled) {
             item = deadbeef->conf_find ("shellexec.", item);
             continue;
         }
@@ -219,7 +223,6 @@ shx_get_actions (DB_plugin_action_callback_t callback, int omit_disabled)
         action->parent.name = strdup (name);
         action->shcommand = strdup (command);
         action->parent.callback = callback;
-        action->parent.flags = DB_ACTION_SINGLE_TRACK;
         action->parent.next = NULL;
 
         action->shx_flags = 0;
@@ -230,7 +233,10 @@ shx_get_actions (DB_plugin_action_callback_t callback, int omit_disabled)
         if (strstr (flags, "remote"))
             action->shx_flags |= SHX_ACTION_REMOTE_ONLY;
 
-        if (0 == strstr (flags, "single"))
+        if (strstr (flags, "single"))
+            action->parent.flags |= DB_ACTION_SINGLE_TRACK;
+
+        if (strstr (flags, "multiple"))
             action->parent.flags |= DB_ACTION_ALLOW_MULTIPLE_TRACKS;
 
         if (strstr (flags, "playlist"))
@@ -268,22 +274,7 @@ static Shx_plugin_t plugin = {
     .misc.plugin.type = DB_PLUGIN_MISC,
     .misc.plugin.id = "shellexec",
     .misc.plugin.name = "Shell commands",
-    .misc.plugin.descr = "Executes configurable shell commands for tracks\n"
-    "This plugin doesn't have GUI configuration yet. Please setup manually in config file\n"
-    "Syntax:\n"
-    "shellexec.NN shcmd:title:name:flags\n\n"
-    "NN is any (unique) number, e.g. 01, 02, 03, etc\n\n"
-    "shcmd is the command to execute, supports title formatting\n\n"
-    "title is the name of command displayed in UI (context menu)\n\n"
-    "name used for referencing commands from other plugins, e.g hotkeys\n\n"
-    "flags are comma-separated list of items, allowed items are:\n"
-    "    single - command allowed only for single track\n"
-    "    local - command allowed only for local files\n"
-    "    remote - command allowed only for non-local files\n"
-    "    disabled - ignore command\n\n"
-    "EXAMPLE: shellexec.00 notify-send \"%a - %t\":Show selected track:notify:singe\n"
-    "this would show the name of selected track in notification popup"
-    ,
+    .misc.plugin.descr = "Executes configurable shell commands for tracks and playlists",
     .misc.plugin.copyright = 
         "Copyright (C) 2010-2012 Alexey Yakovenko <waker@users.sf.net>\n"
         "Copyright (C) 2010 Viktor Semykin <thesame.ml@gmail.com>\n"

@@ -37,8 +37,8 @@ create_shellexec_conf_dialog (void)
   GtkWidget *scrolledwindow;
   GtkWidget *command_treeview;
   GtkWidget *dialog_action_area;
-  GtkWidget *cancel_button;
   GtkWidget *save_button;
+  GtkWidget *cancel_button;
 
   shellexec_conf_dialog = gtk_dialog_new ();
   gtk_window_set_title (GTK_WINDOW (shellexec_conf_dialog), _("Shellexec Commands"));
@@ -53,40 +53,38 @@ create_shellexec_conf_dialog (void)
   gtk_widget_show (hbox1);
   gtk_box_pack_start (GTK_BOX (dialog_vbox), hbox1, FALSE, TRUE, 0);
 
-  add_button = gtk_button_new_with_mnemonic (_("+"));
+  add_button = gtk_button_new_with_mnemonic (_("Add"));
   gtk_widget_show (add_button);
   gtk_box_pack_start (GTK_BOX (hbox1), add_button, FALSE, FALSE, 0);
-  gtk_widget_set_size_request (add_button, 30, -1);
 
-  remove_button = gtk_button_new_with_mnemonic (_("-"));
+  remove_button = gtk_button_new_with_mnemonic (_("Remove"));
   gtk_widget_show (remove_button);
   gtk_box_pack_start (GTK_BOX (hbox1), remove_button, FALSE, FALSE, 0);
-  gtk_widget_set_size_request (remove_button, 30, -1);
 
   scrolledwindow = gtk_scrolled_window_new (NULL, NULL);
   gtk_widget_show (scrolledwindow);
   gtk_box_pack_start (GTK_BOX (dialog_vbox), scrolledwindow, TRUE, TRUE, 0);
-  gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (scrolledwindow), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+  gtk_widget_set_size_request (scrolledwindow, -1, 225);
+  gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (scrolledwindow), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
   gtk_scrolled_window_set_shadow_type (GTK_SCROLLED_WINDOW (scrolledwindow), GTK_SHADOW_IN);
 
   command_treeview = gtk_tree_view_new ();
   gtk_widget_show (command_treeview);
   gtk_container_add (GTK_CONTAINER (scrolledwindow), command_treeview);
-  gtk_widget_set_size_request (command_treeview, 480, 182);
 
   dialog_action_area = GTK_DIALOG (shellexec_conf_dialog)->action_area;
   gtk_widget_show (dialog_action_area);
   gtk_button_box_set_layout (GTK_BUTTON_BOX (dialog_action_area), GTK_BUTTONBOX_END);
 
-  cancel_button = gtk_button_new_with_mnemonic (_("Cancel"));
-  gtk_widget_show (cancel_button);
-  gtk_dialog_add_action_widget (GTK_DIALOG (shellexec_conf_dialog), cancel_button, 0);
-  GTK_WIDGET_SET_FLAGS (cancel_button, GTK_CAN_DEFAULT);
-
   save_button = gtk_button_new_with_mnemonic (_("Save"));
   gtk_widget_show (save_button);
   gtk_dialog_add_action_widget (GTK_DIALOG (shellexec_conf_dialog), save_button, 0);
   GTK_WIDGET_SET_FLAGS (save_button, GTK_CAN_DEFAULT);
+
+  cancel_button = gtk_button_new_with_mnemonic (_("Close"));
+  gtk_widget_show (cancel_button);
+  gtk_dialog_add_action_widget (GTK_DIALOG (shellexec_conf_dialog), cancel_button, 0);
+  GTK_WIDGET_SET_FLAGS (cancel_button, GTK_CAN_DEFAULT);
 
   g_signal_connect ((gpointer) add_button, "clicked",
                     G_CALLBACK (on_add_button_clicked),
@@ -94,11 +92,11 @@ create_shellexec_conf_dialog (void)
   g_signal_connect ((gpointer) remove_button, "clicked",
                     G_CALLBACK (on_remove_button_clicked),
                     NULL);
-  g_signal_connect ((gpointer) cancel_button, "clicked",
-                    G_CALLBACK (on_cancel_button_clicked),
-                    NULL);
   g_signal_connect ((gpointer) save_button, "clicked",
                     G_CALLBACK (on_save_button_clicked),
+                    NULL);
+  g_signal_connect ((gpointer) cancel_button, "clicked",
+                    G_CALLBACK (on_cancel_button_clicked),
                     NULL);
 
   /* Store pointers to all widgets, for use by lookup_widget(). */
@@ -110,8 +108,8 @@ create_shellexec_conf_dialog (void)
   GLADE_HOOKUP_OBJECT (shellexec_conf_dialog, scrolledwindow, "scrolledwindow");
   GLADE_HOOKUP_OBJECT (shellexec_conf_dialog, command_treeview, "command_treeview");
   GLADE_HOOKUP_OBJECT_NO_REF (shellexec_conf_dialog, dialog_action_area, "dialog_action_area");
-  GLADE_HOOKUP_OBJECT (shellexec_conf_dialog, cancel_button, "cancel_button");
   GLADE_HOOKUP_OBJECT (shellexec_conf_dialog, save_button, "save_button");
+  GLADE_HOOKUP_OBJECT (shellexec_conf_dialog, cancel_button, "cancel_button");
 
   return shellexec_conf_dialog;
 }
