@@ -3,3 +3,4 @@
  */
 
 GtkWidget* create_shellexec_conf_dialog (void);
+GtkWidget* create_shellexec_conf_edit_dialog (void);

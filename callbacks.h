@@ -16,3 +16,18 @@ on_cancel_button_clicked               (GtkButton       *button,
 void
 on_save_button_clicked                 (GtkButton       *button,
                                         gpointer         user_data);
+
+void
+on_edit_button_clicked                 (GtkButton       *button,
+                                        gpointer         user_data);
+
+void
+on_edit_cancel_button_clicked          (GtkButton       *button,
+                                        gpointer         user_data);
+
+void
+validate_command_edit                  (GtkWidget       *widget,
+                                        gpointer         user_data);
+void
+on_edit_ok_button_clicked              (GtkButton       *button,
+                                        gpointer         user_data);

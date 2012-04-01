@@ -15,19 +15,15 @@ DB_functions_t *deadbeef;
 static DB_misc_t plugin;
 static ddb_gtkui_t *gtkui_plugin;
 static Shx_plugin_t *shellexec_plugin;
+
+static Shx_action_t *actions; // list of actions being edited
 static GtkWidget *conf_dlg;
-static Shx_action_t *actions;
+static GtkWidget *edit_dlg;
+static Shx_action_t *current_action; // selection action when edit window is active
 
 enum {
     COL_NAME = 0,
     COL_TITLE,
-    COL_SHCMD,
-    COL_SINGLE,
-    COL_MULTIPLE,
-    COL_LOCAL,
-    COL_REMOTE,
-    COL_DISABLED,
-    COL_PLAYLIST,
     COL_META,
     COL_COUNT,
 };
@@ -45,8 +41,8 @@ name_exists(const char *name, Shx_action_t *skip) {
 }
 
 static int
-is_empty(char *name) {
-    char *p = name;
+is_empty(const char *name) {
+    char *p = (char *)name;
     while(*p) {
         if(*p != ' ' || *p != '\t') {
             return 0;
@@ -57,22 +53,22 @@ is_empty(char *name) {
 }
 
 static void
-disable_save_button() {
-    GtkWidget *save_button = lookup_widget(conf_dlg, "save_button");
-    gtk_widget_set_sensitive(save_button, FALSE);
+disable_button(GtkWidget *parent, const char *button_name) {
+    GtkWidget *button = lookup_widget(parent, button_name);
+    gtk_widget_set_sensitive(button, FALSE);
 }
 
 static void
-enable_save_button() {
-    GtkWidget *save_button = lookup_widget(conf_dlg, "save_button");
-    gtk_widget_set_sensitive(save_button, TRUE);  
+enable_button(GtkWidget *parent, const char *button_name) {
+    GtkWidget *button = lookup_widget(parent, button_name);
+    gtk_widget_set_sensitive(button, TRUE);  
 }
 
 void
 on_save_button_clicked (GtkButton *button,
                           gpointer user_data) {
     shellexec_plugin->shx_save_actions(actions);
-    disable_save_button();
+    disable_button(conf_dlg, "save_button");
 }
 
 void
@@ -94,9 +90,10 @@ on_add_button_clicked (GtkButton *button,
         last->parent.next = (DB_plugin_action_t*)action;
     }
 
+    // fill in some deafult values for the new command
     char name[15] = "shxcmd";
     int suffix = 0;
-    while(name_exists(name, action)) {
+    while(name_exists(name, action)) { // create a unique name
         snprintf(name, 15, "shxcmd%d", suffix);
         suffix++;
     }
@@ -109,11 +106,8 @@ on_add_button_clicked (GtkButton *button,
     gtk_list_store_append(liststore, &iter);
     gtk_list_store_set(liststore, &iter, COL_NAME, name,
                                          COL_META, action,
-                                         COL_SHCMD, action->shcommand,
-                                         COL_TITLE, action->parent.title,
-                                         COL_SINGLE, TRUE,
-                                         COL_LOCAL, TRUE, -1);
-    enable_save_button();
+                                         COL_TITLE, action->parent.title, -1);
+    enable_button(conf_dlg, "save_button");
 }
 
 void
@@ -127,6 +121,8 @@ on_remove_button_clicked (GtkButton *button,
     if(gtk_tree_selection_get_selected(selection, &treemodel, &iter)) {
         Shx_action_t *action;
         gtk_tree_model_get(treemodel, &iter, COL_META, &action, -1);
+
+        //remove action from list
         if(actions == action) {
             actions = (Shx_action_t*)action->parent.next;
         }
@@ -142,8 +138,8 @@ on_remove_button_clicked (GtkButton *button,
         free((void *)action->parent.title);
         free(action);
         gtk_list_store_remove(GTK_LIST_STORE(treemodel), &iter);
+        enable_button(conf_dlg, "save_button");
     }
-    enable_save_button();
 }
 
 void
@@ -153,199 +149,161 @@ on_cancel_button_clicked (GtkButton *button,
 }
 
 void
-on_cell_edited(GtkCellRendererText *cell, gchar *path_string,
-               gchar *new_text, gpointer user_data) {
+on_edit_button_clicked(GtkButton *button, gpointer user_data) {
     GtkTreeView *treeview = GTK_TREE_VIEW(lookup_widget(conf_dlg, "command_treeview"));
     GtkTreeModel *treemodel = gtk_tree_view_get_model(treeview);
-    guint column = GPOINTER_TO_UINT(user_data);
-
+    GtkTreeSelection *selection = gtk_tree_view_get_selection(treeview);
     GtkTreeIter iter;
-    gtk_tree_model_get_iter_from_string(treemodel, &iter, path_string);
+    if(gtk_tree_selection_get_selected(selection, &treemodel, &iter)) {
+        gtk_tree_model_get(treemodel, &iter, COL_META, &current_action, -1);
+        edit_dlg = create_shellexec_conf_edit_dialog();
 
-    Shx_action_t *action;
-    gtk_tree_model_get(treemodel, &iter, COL_META, &action, -1);
-    switch(column) {
-        case COL_NAME:  {
-                            size_t len = strlen(new_text)+10;
-                            int suffix = 0;
-                            gchar *temp = g_strndup(new_text, len);
-                            while(name_exists(temp, action)) {
-                                g_snprintf(temp, len, "%s%d", new_text, suffix);
-                                suffix++;
-                            }
-                            g_free((void*)action->parent.name);
-                            action->parent.name = g_strdup(temp);
-                            gtk_list_store_set(GTK_LIST_STORE(treemodel), &iter, column, temp, -1);
-                            g_free(temp);
-                            break;
-                        }
-        case COL_TITLE: if(!is_empty(new_text)) {
-                            free((void*)action->parent.title);
-                            action->parent.title = strdup(new_text);
-                            gtk_list_store_set(GTK_LIST_STORE(treemodel), &iter, column, new_text, -1);
-                        }
-                        break;
-        case COL_SHCMD: if(!is_empty(new_text)) {
-                            free((void*)action->shcommand);
-                            action->shcommand = strdup(new_text);
-                            gtk_list_store_set(GTK_LIST_STORE(treemodel), &iter, column, new_text, -1);
-                        }
-                        break;
+        // Set text fields
+        gtk_entry_set_text(
+            GTK_ENTRY(lookup_widget(edit_dlg, "name_entry")),
+            current_action->parent.name);
+        gtk_entry_set_text(
+            GTK_ENTRY(lookup_widget(edit_dlg, "title_entry")),
+            current_action->parent.title);
+        gtk_entry_set_text(
+            GTK_ENTRY(lookup_widget(edit_dlg, "cmd_entry")),
+            current_action->shcommand);
+
+        // Set check boxes
+        gtk_toggle_button_set_active(
+            GTK_TOGGLE_BUTTON(lookup_widget(edit_dlg, "single_check")),
+            current_action->parent.flags & DB_ACTION_SINGLE_TRACK);
+        gtk_toggle_button_set_active(
+            GTK_TOGGLE_BUTTON(lookup_widget(edit_dlg, "multiple_check")),
+            current_action->parent.flags & DB_ACTION_ALLOW_MULTIPLE_TRACKS);
+        gtk_toggle_button_set_active(
+            GTK_TOGGLE_BUTTON(lookup_widget(edit_dlg, "disabled_check")),
+            current_action->parent.flags & DB_ACTION_DISABLED);
+        gtk_toggle_button_set_active(
+            GTK_TOGGLE_BUTTON(lookup_widget(edit_dlg, "local_check")),
+            current_action->shx_flags & SHX_ACTION_LOCAL_ONLY);
+        gtk_toggle_button_set_active(
+            GTK_TOGGLE_BUTTON(lookup_widget(edit_dlg, "remote_check")),
+            current_action->shx_flags & SHX_ACTION_REMOTE_ONLY);
+
+        disable_button(edit_dlg, "edit_ok_button"); // OK button is disabled by default
+        gtk_widget_show(edit_dlg);
     }
-    enable_save_button();
 }
 
 void
-on_cell_toggled(GtkCellRendererToggle *cell, gchar *path_string,
-                gpointer user_data) {
-    GtkTreeView *treeview = GTK_TREE_VIEW(lookup_widget(conf_dlg, "command_treeview"));
-    GtkTreeModel *treemodel = gtk_tree_view_get_model(treeview);
-    guint column = GPOINTER_TO_UINT(user_data);
-
-    GtkTreeIter iter;
-    gtk_tree_model_get_iter_from_string(treemodel, &iter, path_string);
-
-    gboolean value;
-    Shx_action_t *action;
-    gtk_tree_model_get(treemodel, &iter, column, &value, -1);
-    gtk_tree_model_get(treemodel, &iter, COL_META, &action, -1);
-
-    switch(column) {
-        case COL_LOCAL:    action->shx_flags ^= SHX_ACTION_LOCAL_ONLY;
-                           break;
-        case COL_REMOTE:   action->shx_flags ^= SHX_ACTION_REMOTE_ONLY;
-                           break;
-        case COL_DISABLED: action->parent.flags ^= DB_ACTION_DISABLED;
-                           break;
-        case COL_PLAYLIST: action->parent.flags ^= DB_ACTION_PLAYLIST;
-                           break;
-        case COL_SINGLE:   action->parent.flags ^= DB_ACTION_SINGLE_TRACK;
-                           break;
-        case COL_MULTIPLE: action->parent.flags ^= DB_ACTION_ALLOW_MULTIPLE_TRACKS;
-                           break;
-    }
-    gtk_list_store_set(GTK_LIST_STORE(treemodel), &iter, column, !value, -1);
-    enable_save_button();
+on_edit_cancel_button_clicked (GtkButton *button, gpointer user_data) {
+    gtk_widget_destroy(edit_dlg);
 }
 
-static GtkTreeModel *
-init_treemodel() {
-    GtkListStore *liststore;
+void
+validate_command_edit (GtkWidget *widget, gpointer user_data) {
+    const char *text;
+    int valid = 1;
+
+    text = gtk_entry_get_text(GTK_ENTRY(lookup_widget(edit_dlg, "name_entry")));
+    if(is_empty(text) || name_exists(text, current_action)) {
+        valid = 0;
+    }
+
+    text = gtk_entry_get_text(GTK_ENTRY(lookup_widget(edit_dlg, "title_entry")));
+    if(is_empty(text)) {
+        valid = 0;
+    }
+
+    text = gtk_entry_get_text(GTK_ENTRY(lookup_widget(edit_dlg, "cmd_entry")));
+    if(is_empty(text)) {
+        valid = 0;
+    }
+
+    if(valid) {
+        enable_button(edit_dlg, "edit_ok_button");
+    }
+    else {
+        disable_button(edit_dlg, "edit_ok_button");
+    }
+}
+
+void
+on_edit_ok_button_clicked (GtkButton *button, gpointer user_data) {
+    // Store all the text fields in the current action
+    GtkEntry *entry;
+    entry = GTK_ENTRY(lookup_widget(edit_dlg, "name_entry"));
+    current_action->parent.name = strdup(gtk_entry_get_text(entry));
+    entry = GTK_ENTRY(lookup_widget(edit_dlg, "title_entry"));
+    current_action->parent.title = strdup(gtk_entry_get_text(entry));
+    entry = GTK_ENTRY(lookup_widget(edit_dlg, "cmd_entry"));
+    current_action->shcommand = strdup(gtk_entry_get_text(entry));
+
+    gboolean active;
+    int flags = current_action->parent.flags;
+    int shx_flags = current_action->shx_flags;
+    // Store all the check button values in the current action
+    active = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(lookup_widget(edit_dlg, "single_check")));
+    flags = (flags & ~DB_ACTION_SINGLE_TRACK) | (active?DB_ACTION_SINGLE_TRACK:0);
+    active = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(lookup_widget(edit_dlg, "multiple_check")));
+    flags = (flags & ~DB_ACTION_ALLOW_MULTIPLE_TRACKS) | (active?DB_ACTION_ALLOW_MULTIPLE_TRACKS:0);
+    active = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(lookup_widget(edit_dlg, "playlist_check")));
+    flags = (flags & ~DB_ACTION_PLAYLIST) | (active?DB_ACTION_PLAYLIST:0);
+    active = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(lookup_widget(edit_dlg, "disabled_check")));
+    flags = (flags & ~DB_ACTION_DISABLED) | (active?DB_ACTION_DISABLED:0);
+    active = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(lookup_widget(edit_dlg, "local_check")));
+    shx_flags = (shx_flags & ~SHX_ACTION_LOCAL_ONLY) | (active?SHX_ACTION_LOCAL_ONLY:0);
+    active = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(lookup_widget(edit_dlg, "remote_check")));
+    shx_flags = (shx_flags & ~SHX_ACTION_REMOTE_ONLY) | (active?SHX_ACTION_REMOTE_ONLY:0);
+
+    current_action->parent.flags = flags;
+    current_action->shx_flags = shx_flags;
+
+    // Update the main window tree view
+    GtkTreeView *treeview = GTK_TREE_VIEW(lookup_widget(conf_dlg, "command_treeview"));
+    GtkTreeModel *treemodel = gtk_tree_view_get_model(treeview);
+    GtkTreeSelection *selection = gtk_tree_view_get_selection(treeview);
     GtkTreeIter iter;
+    gtk_tree_selection_get_selected(selection, &treemodel, &iter);
+    gtk_list_store_set(GTK_LIST_STORE(treemodel), &iter,
+                       COL_NAME, current_action->parent.name,
+                       COL_TITLE, current_action->parent.title, -1);
 
+    gtk_widget_destroy(edit_dlg);
+    edit_dlg = NULL;
+    current_action = NULL;
+
+    enable_button(conf_dlg, "save_button");
+}
+
+static void
+init_treeview() {
+    // Create the tree view and cell renderers
+    GtkTreeView *treeview = GTK_TREE_VIEW(lookup_widget(conf_dlg, "command_treeview"));
+    GtkCellRenderer *cell_renderer;
+    cell_renderer = gtk_cell_renderer_text_new();
+    gtk_tree_view_insert_column_with_attributes(treeview, -1, "Name", cell_renderer,
+                                                "text", COL_NAME, NULL);
+    cell_renderer = gtk_cell_renderer_text_new();
+    gtk_tree_view_insert_column_with_attributes(treeview, -1, "Title", cell_renderer,
+                                                "text", COL_TITLE, NULL);
+
+    // Create the tree view data model and fill it with values
+    GtkListStore *liststore;
     liststore = gtk_list_store_new(COL_COUNT, 
-                                   G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING,
-                                   G_TYPE_BOOLEAN, G_TYPE_BOOLEAN, G_TYPE_BOOLEAN, G_TYPE_BOOLEAN,
-                                   G_TYPE_BOOLEAN, G_TYPE_BOOLEAN, G_TYPE_POINTER);
-
+                                   G_TYPE_STRING,
+                                   G_TYPE_STRING,
+                                   G_TYPE_POINTER);
     actions = shellexec_plugin->shx_get_actions(NULL, FALSE);
     Shx_action_t *action = actions;
+    GtkTreeIter iter;
     while(action) {
         gtk_list_store_append(liststore, &iter);
         gtk_list_store_set(liststore, &iter,
                            COL_NAME,     action->parent.name,
                            COL_TITLE,    action->parent.title,
-                           COL_SHCMD,    action->shcommand,
-                           COL_SINGLE,   action->parent.flags & DB_ACTION_SINGLE_TRACK,
-                           COL_MULTIPLE, action->parent.flags & DB_ACTION_ALLOW_MULTIPLE_TRACKS,
-                           COL_LOCAL,    action->shx_flags & SHX_ACTION_LOCAL_ONLY,
-                           COL_REMOTE,   action->shx_flags & SHX_ACTION_REMOTE_ONLY,
-                           COL_DISABLED, action->parent.flags & DB_ACTION_DISABLED,
-                           COL_PLAYLIST, action->parent.flags & DB_ACTION_PLAYLIST,
                            COL_META,     action, -1);
         action = (Shx_action_t *)action->parent.next;
     }
-    return GTK_TREE_MODEL(liststore);
-}
 
-static void
-init_treeview() {
-    GtkTreeView *treeview = GTK_TREE_VIEW(lookup_widget(conf_dlg, "command_treeview"));
-    GtkTreeModel *treemodel;
-    GtkCellRenderer *cell_renderer;
-
-    cell_renderer = gtk_cell_renderer_text_new();
-    g_object_set(cell_renderer, "editable", TRUE, NULL);
-    g_signal_connect(cell_renderer, "edited", G_CALLBACK(on_cell_edited),
-                     GUINT_TO_POINTER(COL_NAME));
-    gtk_tree_view_insert_column_with_attributes(treeview, -1, "Name", cell_renderer,
-                                                "text", COL_NAME, NULL);
-    gtk_cell_renderer_set_fixed_size(cell_renderer, 50, -1);
-
-
-    cell_renderer = gtk_cell_renderer_text_new();
-    g_object_set(cell_renderer, "editable", TRUE, NULL);
-    g_signal_connect(cell_renderer, "edited", G_CALLBACK(on_cell_edited),
-                     GUINT_TO_POINTER(COL_TITLE));
-    gtk_tree_view_insert_column_with_attributes(treeview, -1, "Title", cell_renderer,
-                                                "text", COL_TITLE, NULL);
-    gtk_cell_renderer_set_fixed_size(cell_renderer, 150, -1);
-
-    cell_renderer = gtk_cell_renderer_text_new();
-    g_object_set(cell_renderer, "editable", TRUE, NULL);
-    g_signal_connect(cell_renderer, "edited", G_CALLBACK(on_cell_edited),
-                     GUINT_TO_POINTER(COL_SHCMD));
-    gtk_tree_view_insert_column_with_attributes(treeview, -1, "Shell Command", cell_renderer,
-                                                "text", COL_SHCMD, NULL);
-    gtk_cell_renderer_set_fixed_size(cell_renderer, 200, -1);
-
-    cell_renderer = gtk_cell_renderer_toggle_new();
-    g_object_set(cell_renderer, "activatable", TRUE, NULL);
-    g_signal_connect(cell_renderer, "toggled", G_CALLBACK(on_cell_toggled),
-                     GUINT_TO_POINTER(COL_SINGLE));
-    gtk_tree_view_insert_column_with_attributes(treeview, -1, "Single", cell_renderer,
-                                                "active", COL_SINGLE, NULL);
-
-    cell_renderer = gtk_cell_renderer_toggle_new();
-    g_object_set(cell_renderer, "activatable", TRUE, NULL);
-    g_signal_connect(cell_renderer, "toggled", G_CALLBACK(on_cell_toggled),
-                     GUINT_TO_POINTER(COL_MULTIPLE));
-    gtk_tree_view_insert_column_with_attributes(treeview, -1, "Multiple", cell_renderer,
-                                                "active", COL_MULTIPLE, NULL);
-
-
-    cell_renderer = gtk_cell_renderer_toggle_new();
-    g_object_set(cell_renderer, "activatable", TRUE, NULL);
-    g_signal_connect(cell_renderer, "toggled", G_CALLBACK(on_cell_toggled),
-                     GUINT_TO_POINTER(COL_LOCAL));
-    gtk_tree_view_insert_column_with_attributes(treeview, -1, "Local", cell_renderer,
-                                                "active", COL_LOCAL, NULL);
-
-    cell_renderer = gtk_cell_renderer_toggle_new();
-    g_object_set(cell_renderer, "activatable", TRUE, NULL);
-    g_signal_connect(cell_renderer, "toggled", G_CALLBACK(on_cell_toggled),
-                     GUINT_TO_POINTER(COL_REMOTE));
-    gtk_tree_view_insert_column_with_attributes(treeview, -1, "Remote", cell_renderer,
-                                                "active", COL_REMOTE, NULL);
-
-    cell_renderer = gtk_cell_renderer_toggle_new();
-    g_object_set(cell_renderer, "activatable", TRUE, NULL);
-    g_signal_connect(cell_renderer, "toggled", G_CALLBACK(on_cell_toggled),
-                     GUINT_TO_POINTER(COL_PLAYLIST));
-    gtk_tree_view_insert_column_with_attributes(treeview, -1, "Playlist", cell_renderer,
-                                                "active", COL_PLAYLIST, NULL);
-
-    cell_renderer = gtk_cell_renderer_toggle_new();
-    g_object_set(cell_renderer, "activatable", TRUE, NULL);
-    g_signal_connect(cell_renderer, "toggled", G_CALLBACK(on_cell_toggled),
-                     GUINT_TO_POINTER(COL_DISABLED));
-    gtk_tree_view_insert_column_with_attributes(treeview, -1, "Disabled", cell_renderer,
-                                                "active", COL_DISABLED, NULL);
-
-
-    GList *column_list = gtk_tree_view_get_columns(treeview);
-    while(column_list) {
-        GtkTreeViewColumn *column = GTK_TREE_VIEW_COLUMN(column_list->data);
-        GtkWidget *label = gtk_label_new(gtk_tree_view_column_get_title(column));
-        gtk_widget_modify_font(label, pango_font_description_from_string("sans normal 8"));
-        gtk_tree_view_column_set_widget(column, label);
-        gtk_widget_show(label);        
-        column_list = column_list->next;
-    }
-
-    treemodel = init_treemodel();
-    gtk_tree_view_set_model(treeview, treemodel);
-    g_object_unref(treemodel);
+    gtk_tree_view_set_model(treeview, GTK_TREE_MODEL(liststore));
+    g_object_unref(liststore);
 }
 
 static int
@@ -353,7 +311,7 @@ shellexecui_action_callback(DB_plugin_action_t *action,
                                 void *user_data) {
     conf_dlg = create_shellexec_conf_dialog();
     init_treeview();
-    disable_save_button();
+    disable_button(conf_dlg, "save_button");
     gtk_widget_show(conf_dlg);
     return 0;
 }

@@ -40,3 +40,32 @@ on_save_button_clicked                 (GtkButton       *button,
 
 }
 
+
+void
+on_edit_button_clicked                 (GtkButton       *button,
+                                        gpointer         user_data)
+{
+
+}
+
+void
+on_edit_cancel_button_clicked          (GtkButton       *button,
+                                        gpointer         user_data)
+{
+
+}
+
+
+void
+validate_command_edit                  (GtkEditable     *editable,
+                                        gpointer         user_data)
+{
+
+}
+void
+on_edit_ok_button_clicked              (GtkButton       *button,
+                                        gpointer         user_data)
+{
+
+}
+
