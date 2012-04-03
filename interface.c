@@ -21,7 +21,7 @@
 
 #define GLADE_HOOKUP_OBJECT(component,widget,name) \
   g_object_set_data_full (G_OBJECT (component), name, \
-    gtk_widget_ref (widget), (GDestroyNotify) gtk_widget_unref)
+    g_object_ref(G_OBJECT(widget)), (GDestroyNotify) g_object_unref)
 
 #define GLADE_HOOKUP_OBJECT_NO_REF(component,widget,name) \
   g_object_set_data (G_OBJECT (component), name, widget)
@@ -42,53 +42,55 @@ create_shellexec_conf_dialog (void)
   GtkWidget *cancel_button;
 
   shellexec_conf_dialog = gtk_dialog_new ();
+  gtk_container_set_border_width (GTK_CONTAINER (shellexec_conf_dialog), 12);
   gtk_window_set_title (GTK_WINDOW (shellexec_conf_dialog), _("Shellexec Commands"));
-  gtk_window_set_position (GTK_WINDOW (shellexec_conf_dialog), GTK_WIN_POS_CENTER);
   gtk_window_set_type_hint (GTK_WINDOW (shellexec_conf_dialog), GDK_WINDOW_TYPE_HINT_DIALOG);
   gtk_dialog_set_has_separator (GTK_DIALOG (shellexec_conf_dialog), FALSE);
 
-  dialog_vbox = GTK_DIALOG (shellexec_conf_dialog)->vbox;
+  dialog_vbox = gtk_dialog_get_content_area (GTK_DIALOG (shellexec_conf_dialog));
   gtk_widget_show (dialog_vbox);
+  gtk_box_set_spacing(GTK_BOX(dialog_vbox), 8);
 
-  hbox1 = gtk_hbox_new (FALSE, 7);
+  hbox1 = gtk_hbox_new (FALSE, 8);
   gtk_widget_show (hbox1);
-  gtk_box_pack_start (GTK_BOX (dialog_vbox), hbox1, FALSE, TRUE, 3);
+  gtk_box_pack_start (GTK_BOX (dialog_vbox), hbox1, FALSE, TRUE, 0);
 
   add_button = gtk_button_new_with_mnemonic (_("Add"));
   gtk_widget_show (add_button);
-  gtk_box_pack_start (GTK_BOX (hbox1), add_button, FALSE, FALSE, 0);
+  gtk_box_pack_start (GTK_BOX (hbox1), add_button, TRUE, TRUE, 0);
 
   remove_button = gtk_button_new_with_mnemonic (_("Remove"));
   gtk_widget_show (remove_button);
-  gtk_box_pack_start (GTK_BOX (hbox1), remove_button, FALSE, FALSE, 0);
+  gtk_box_pack_start (GTK_BOX (hbox1), remove_button, TRUE, TRUE, 0);
 
   edit_button = gtk_button_new_with_mnemonic (_("Edit"));
   gtk_widget_show (edit_button);
-  gtk_box_pack_start (GTK_BOX (hbox1), edit_button, FALSE, FALSE, 0);
+  gtk_box_pack_start (GTK_BOX (hbox1), edit_button, TRUE, TRUE, 0);
 
   scrolledwindow = gtk_scrolled_window_new (NULL, NULL);
   gtk_widget_show (scrolledwindow);
-  gtk_box_pack_start (GTK_BOX (dialog_vbox), scrolledwindow, TRUE, TRUE, 0);
-  gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (scrolledwindow), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
+  gtk_box_pack_end (GTK_BOX (dialog_vbox), scrolledwindow, TRUE, TRUE, 0);
+  gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (scrolledwindow), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
   gtk_scrolled_window_set_shadow_type (GTK_SCROLLED_WINDOW (scrolledwindow), GTK_SHADOW_IN);
 
   command_treeview = gtk_tree_view_new ();
   gtk_widget_show (command_treeview);
   gtk_container_add (GTK_CONTAINER (scrolledwindow), command_treeview);
+  gtk_widget_set_size_request (command_treeview, 300, 200);
 
-  dialog_action_area = GTK_DIALOG (shellexec_conf_dialog)->action_area;
+  dialog_action_area = gtk_dialog_get_action_area (GTK_DIALOG (shellexec_conf_dialog));
   gtk_widget_show (dialog_action_area);
   gtk_button_box_set_layout (GTK_BUTTON_BOX (dialog_action_area), GTK_BUTTONBOX_END);
 
   save_button = gtk_button_new_with_mnemonic (_("Save"));
   gtk_widget_show (save_button);
   gtk_dialog_add_action_widget (GTK_DIALOG (shellexec_conf_dialog), save_button, 0);
-  GTK_WIDGET_SET_FLAGS (save_button, GTK_CAN_DEFAULT);
+  gtk_widget_set_can_default(save_button, TRUE);
 
   cancel_button = gtk_button_new_with_mnemonic (_("Close"));
   gtk_widget_show (cancel_button);
   gtk_dialog_add_action_widget (GTK_DIALOG (shellexec_conf_dialog), cancel_button, 0);
-  GTK_WIDGET_SET_FLAGS (cancel_button, GTK_CAN_DEFAULT);
+  gtk_widget_set_can_default(cancel_button, TRUE);
 
   g_signal_connect ((gpointer) add_button, "clicked",
                     G_CALLBACK (on_add_button_clicked),
@@ -145,21 +147,21 @@ create_shellexec_conf_edit_dialog (void)
   GtkWidget *edit_ok_button;
 
   shellexec_conf_edit_dialog = gtk_dialog_new ();
-  gtk_container_set_border_width (GTK_CONTAINER (shellexec_conf_edit_dialog), 5);
+  gtk_container_set_border_width (GTK_CONTAINER (shellexec_conf_edit_dialog), 12);
   gtk_window_set_title (GTK_WINDOW (shellexec_conf_edit_dialog), _("Edit Command"));
   gtk_window_set_modal (GTK_WINDOW (shellexec_conf_edit_dialog), TRUE);
-  gtk_window_set_resizable (GTK_WINDOW (shellexec_conf_edit_dialog), FALSE);
   gtk_window_set_type_hint (GTK_WINDOW (shellexec_conf_edit_dialog), GDK_WINDOW_TYPE_HINT_DIALOG);
   gtk_dialog_set_has_separator (GTK_DIALOG (shellexec_conf_edit_dialog), FALSE);
 
-  dialog_vbox1 = GTK_DIALOG (shellexec_conf_edit_dialog)->vbox;
+  dialog_vbox1 = gtk_dialog_get_content_area (GTK_DIALOG (shellexec_conf_edit_dialog));
   gtk_widget_show (dialog_vbox1);
+  gtk_box_set_spacing(GTK_BOX(dialog_vbox1), 8);
 
   table1 = gtk_table_new (3, 2, FALSE);
   gtk_widget_show (table1);
   gtk_box_pack_start (GTK_BOX (dialog_vbox1), table1, TRUE, TRUE, 0);
-  gtk_table_set_row_spacings (GTK_TABLE (table1), 6);
-  gtk_table_set_col_spacings (GTK_TABLE (table1), 22);
+  gtk_table_set_row_spacings (GTK_TABLE (table1), 8);
+  gtk_table_set_col_spacings (GTK_TABLE (table1), 8);
 
   title_label = gtk_label_new (_("Title"));
   gtk_widget_show (title_label);
@@ -227,19 +229,19 @@ create_shellexec_conf_edit_dialog (void)
   gtk_widget_show (disabled_check);
   gtk_box_pack_start (GTK_BOX (dialog_vbox1), disabled_check, FALSE, FALSE, 0);
 
-  dialog_action_area1 = GTK_DIALOG (shellexec_conf_edit_dialog)->action_area;
+  dialog_action_area1 = gtk_dialog_get_action_area (GTK_DIALOG (shellexec_conf_edit_dialog));
   gtk_widget_show (dialog_action_area1);
   gtk_button_box_set_layout (GTK_BUTTON_BOX (dialog_action_area1), GTK_BUTTONBOX_END);
 
   edit_cancel_button = gtk_button_new_from_stock ("gtk-cancel");
   gtk_widget_show (edit_cancel_button);
   gtk_dialog_add_action_widget (GTK_DIALOG (shellexec_conf_edit_dialog), edit_cancel_button, GTK_RESPONSE_CANCEL);
-  GTK_WIDGET_SET_FLAGS (edit_cancel_button, GTK_CAN_DEFAULT);
+  gtk_widget_set_can_default(edit_cancel_button, TRUE);
 
   edit_ok_button = gtk_button_new_from_stock ("gtk-ok");
   gtk_widget_show (edit_ok_button);
   gtk_dialog_add_action_widget (GTK_DIALOG (shellexec_conf_edit_dialog), edit_ok_button, GTK_RESPONSE_OK);
-  GTK_WIDGET_SET_FLAGS (edit_ok_button, GTK_CAN_DEFAULT);
+  gtk_widget_set_can_default(edit_ok_button, TRUE);
 
   g_signal_connect ((gpointer) name_entry, "changed",
                     G_CALLBACK (validate_command_edit),

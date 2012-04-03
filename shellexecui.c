@@ -22,8 +22,7 @@ static GtkWidget *edit_dlg;
 static Shx_action_t *current_action; // selection action when edit window is active
 
 enum {
-    COL_NAME = 0,
-    COL_TITLE,
+    COL_TITLE = 0,
     COL_META,
     COL_COUNT,
 };
@@ -71,43 +70,45 @@ on_save_button_clicked (GtkButton *button,
     disable_button(conf_dlg, "save_button");
 }
 
+GtkWidget *create_edit_dlg() {
+    GtkWidget *dlg = create_shellexec_conf_edit_dialog();
+    gtk_window_set_transient_for(GTK_WINDOW(dlg),
+                                 GTK_WINDOW(conf_dlg));
+    return dlg;
+}
+
 void
 on_add_button_clicked (GtkButton *button,
                           gpointer user_data) {
-    GtkTreeView *treeview = GTK_TREE_VIEW(lookup_widget(conf_dlg, "command_treeview"));
-    GtkListStore *liststore = GTK_LIST_STORE(gtk_tree_view_get_model(treeview));
-    GtkTreeIter iter;
+    current_action = NULL;
+    edit_dlg = create_edit_dlg();
+    gtk_window_set_title(GTK_WINDOW(edit_dlg), _("Add Command"));
 
-    Shx_action_t *action = calloc(sizeof(Shx_action_t), 1);
-    if(!actions) {
-        actions = action;
-    }
-    else {
-        Shx_action_t *last = actions;
-        while(last->parent.next) {
-            last = (Shx_action_t*)last->parent.next;
-        }
-        last->parent.next = (DB_plugin_action_t*)action;
-    }
-
-    // fill in some deafult values for the new command
-    char name[15] = "shxcmd";
+    // generate unique command name
+    char name[15] = "new_cmd";
     int suffix = 0;
-    while(name_exists(name, action)) { // create a unique name
-        snprintf(name, 15, "shxcmd%d", suffix);
+    while(name_exists(name, NULL)) { // create a unique name
+        snprintf(name, 15, "new_cmd%d", suffix);
         suffix++;
     }
+    // Set default values in text fields
+    gtk_entry_set_text(
+        GTK_ENTRY(lookup_widget(edit_dlg, "name_entry")),
+        name);
+    gtk_entry_set_text(
+        GTK_ENTRY(lookup_widget(edit_dlg, "title_entry")),
+        "New Command");
 
-    action->parent.name = strdup(name);
-    action->parent.title = strdup("Shell Command");
-    action->shcommand = strdup("notify-send \"%b\"");
-    action->shx_flags |= SHX_ACTION_LOCAL_ONLY;
-    action->parent.flags |= DB_ACTION_SINGLE_TRACK;
-    gtk_list_store_append(liststore, &iter);
-    gtk_list_store_set(liststore, &iter, COL_NAME, name,
-                                         COL_META, action,
-                                         COL_TITLE, action->parent.title, -1);
-    enable_button(conf_dlg, "save_button");
+    // Set default values in check boxes
+    gtk_toggle_button_set_active(
+        GTK_TOGGLE_BUTTON(lookup_widget(edit_dlg, "single_check")),
+        TRUE);
+    gtk_toggle_button_set_active(
+        GTK_TOGGLE_BUTTON(lookup_widget(edit_dlg, "local_check")),
+        TRUE);
+
+    disable_button(edit_dlg, "edit_ok_button");
+    gtk_widget_show(edit_dlg);
 }
 
 void
@@ -119,6 +120,20 @@ on_remove_button_clicked (GtkButton *button,
     GtkTreeSelection *selection;
     selection = gtk_tree_view_get_selection(treeview);
     if(gtk_tree_selection_get_selected(selection, &treemodel, &iter)) {
+        // ask confirmation
+        GtkWidget *confirm_dlg = gtk_message_dialog_new (GTK_WINDOW(conf_dlg), GTK_DIALOG_MODAL,
+                                                 GTK_MESSAGE_WARNING, GTK_BUTTONS_YES_NO,
+                                                 _("Delete"));
+        gtk_message_dialog_format_secondary_text (GTK_MESSAGE_DIALOG (confirm_dlg),
+                                                  _("This action will delete the selected shell command. Are you sure?"));
+        gtk_window_set_transient_for(GTK_WINDOW (confirm_dlg), GTK_WINDOW (conf_dlg));
+        gtk_window_set_title (GTK_WINDOW (confirm_dlg), _("Confirm Remove"));
+        int response = gtk_dialog_run (GTK_DIALOG (confirm_dlg));
+        gtk_widget_destroy(confirm_dlg);
+        if(response == GTK_RESPONSE_NO) {
+            return;
+        }
+
         Shx_action_t *action;
         gtk_tree_model_get(treemodel, &iter, COL_META, &action, -1);
 
@@ -137,7 +152,20 @@ on_remove_button_clicked (GtkButton *button,
         free((void *)action->parent.name);
         free((void *)action->parent.title);
         free(action);
+
+        GtkTreeIter next_iter = iter;
+        if(gtk_tree_model_iter_next(treemodel, &next_iter)) {
+            gtk_tree_selection_select_iter(selection, &next_iter);
+        }
+        else {
+            int count = gtk_tree_model_iter_n_children(treemodel, NULL);
+            if(count >= 2) {
+                GtkTreePath *last = gtk_tree_path_new_from_indices(count-2, -1);
+                gtk_tree_selection_select_path(selection, last);
+            }
+        }
         gtk_list_store_remove(GTK_LIST_STORE(treemodel), &iter);
+
         enable_button(conf_dlg, "save_button");
     }
 }
@@ -156,8 +184,7 @@ on_edit_button_clicked(GtkButton *button, gpointer user_data) {
     GtkTreeIter iter;
     if(gtk_tree_selection_get_selected(selection, &treemodel, &iter)) {
         gtk_tree_model_get(treemodel, &iter, COL_META, &current_action, -1);
-        edit_dlg = create_shellexec_conf_edit_dialog();
-
+        edit_dlg = create_edit_dlg();
         // Set text fields
         gtk_entry_set_text(
             GTK_ENTRY(lookup_widget(edit_dlg, "name_entry")),
@@ -226,6 +253,31 @@ validate_command_edit (GtkWidget *widget, gpointer user_data) {
 
 void
 on_edit_ok_button_clicked (GtkButton *button, gpointer user_data) {
+    // Update the main window tree view
+    GtkTreeView *treeview = GTK_TREE_VIEW(lookup_widget(conf_dlg, "command_treeview"));
+    GtkTreeModel *treemodel = gtk_tree_view_get_model(treeview);
+    GtkTreeSelection *selection = gtk_tree_view_get_selection(treeview);
+    GtkTreeIter iter;
+
+    if(current_action == NULL) {
+        current_action = calloc(sizeof(Shx_action_t), 1);
+        if(!actions) {
+            actions = current_action;
+        }
+        else {
+            Shx_action_t *last = actions;
+            while(last->parent.next) {
+                last = (Shx_action_t *)last->parent.next;
+            }
+            last->parent.next = (DB_plugin_action_t*)current_action;
+        }
+        gtk_list_store_append(GTK_LIST_STORE(treemodel), &iter);
+        gtk_list_store_set(GTK_LIST_STORE(treemodel), &iter, COL_META, current_action, -1);
+        gtk_tree_selection_select_iter(selection, &iter);
+    }
+    else {
+        gtk_tree_selection_get_selected(selection, &treemodel, &iter);
+    }
     // Store all the text fields in the current action
     GtkEntry *entry;
     entry = GTK_ENTRY(lookup_widget(edit_dlg, "name_entry"));
@@ -255,14 +307,7 @@ on_edit_ok_button_clicked (GtkButton *button, gpointer user_data) {
     current_action->parent.flags = flags;
     current_action->shx_flags = shx_flags;
 
-    // Update the main window tree view
-    GtkTreeView *treeview = GTK_TREE_VIEW(lookup_widget(conf_dlg, "command_treeview"));
-    GtkTreeModel *treemodel = gtk_tree_view_get_model(treeview);
-    GtkTreeSelection *selection = gtk_tree_view_get_selection(treeview);
-    GtkTreeIter iter;
-    gtk_tree_selection_get_selected(selection, &treemodel, &iter);
     gtk_list_store_set(GTK_LIST_STORE(treemodel), &iter,
-                       COL_NAME, current_action->parent.name,
                        COL_TITLE, current_action->parent.title, -1);
 
     gtk_widget_destroy(edit_dlg);
@@ -278,17 +323,14 @@ init_treeview() {
     GtkTreeView *treeview = GTK_TREE_VIEW(lookup_widget(conf_dlg, "command_treeview"));
     GtkCellRenderer *cell_renderer;
     cell_renderer = gtk_cell_renderer_text_new();
-    gtk_tree_view_insert_column_with_attributes(treeview, -1, "Name", cell_renderer,
-                                                "text", COL_NAME, NULL);
-    cell_renderer = gtk_cell_renderer_text_new();
-    gtk_tree_view_insert_column_with_attributes(treeview, -1, "Title", cell_renderer,
+    gtk_tree_view_insert_column_with_attributes(treeview, -1, _("Title"), cell_renderer,
                                                 "text", COL_TITLE, NULL);
 
     // Create the tree view data model and fill it with values
     GtkListStore *liststore;
     liststore = gtk_list_store_new(COL_COUNT, 
                                    G_TYPE_STRING,
-                                   G_TYPE_STRING,
+                                   //G_TYPE_BOOLEAN,
                                    G_TYPE_POINTER);
     actions = shellexec_plugin->shx_get_actions(NULL, FALSE);
     Shx_action_t *action = actions;
@@ -296,7 +338,6 @@ init_treeview() {
     while(action) {
         gtk_list_store_append(liststore, &iter);
         gtk_list_store_set(liststore, &iter,
-                           COL_NAME,     action->parent.name,
                            COL_TITLE,    action->parent.title,
                            COL_META,     action, -1);
         action = (Shx_action_t *)action->parent.next;
@@ -310,6 +351,8 @@ static int
 shellexecui_action_callback(DB_plugin_action_t *action,
                                 void *user_data) {
     conf_dlg = create_shellexec_conf_dialog();
+    gtk_window_set_transient_for(GTK_WINDOW(conf_dlg),
+                                 GTK_WINDOW(gtkui_plugin->get_mainwin()));
     init_treeview();
     disable_button(conf_dlg, "save_button");
     gtk_widget_show(conf_dlg);
@@ -317,7 +360,7 @@ shellexecui_action_callback(DB_plugin_action_t *action,
 }
 
 static DB_plugin_action_t shellexecui_action = {
-    .title = "Edit/Shellexec Commands",
+    .title = _("Edit/Shellexec Commands"),
     .name = "shellexec_conf",
     .flags = DB_ACTION_COMMON,
     .callback = shellexecui_action_callback,
