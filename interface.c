@@ -39,11 +39,10 @@ create_shellexec_conf_dialog (void)
   GtkWidget *command_treeview;
   GtkWidget *dialog_action_area;
   GtkWidget *save_button;
-  GtkWidget *cancel_button;
 
   shellexec_conf_dialog = gtk_dialog_new ();
   gtk_container_set_border_width (GTK_CONTAINER (shellexec_conf_dialog), 12);
-  gtk_window_set_title (GTK_WINDOW (shellexec_conf_dialog), _("Shellexec Commands"));
+  gtk_window_set_title (GTK_WINDOW (shellexec_conf_dialog), _("Custom Shell Commands"));
   gtk_window_set_type_hint (GTK_WINDOW (shellexec_conf_dialog), GDK_WINDOW_TYPE_HINT_DIALOG);
   gtk_dialog_set_has_separator (GTK_DIALOG (shellexec_conf_dialog), FALSE);
 
@@ -82,15 +81,10 @@ create_shellexec_conf_dialog (void)
   gtk_widget_show (dialog_action_area);
   gtk_button_box_set_layout (GTK_BUTTON_BOX (dialog_action_area), GTK_BUTTONBOX_END);
 
-  save_button = gtk_button_new_with_mnemonic (_("Save"));
+  save_button = gtk_button_new_with_mnemonic (_("Close"));
   gtk_widget_show (save_button);
   gtk_dialog_add_action_widget (GTK_DIALOG (shellexec_conf_dialog), save_button, 0);
   gtk_widget_set_can_default(save_button, TRUE);
-
-  cancel_button = gtk_button_new_with_mnemonic (_("Close"));
-  gtk_widget_show (cancel_button);
-  gtk_dialog_add_action_widget (GTK_DIALOG (shellexec_conf_dialog), cancel_button, 0);
-  gtk_widget_set_can_default(cancel_button, TRUE);
 
   g_signal_connect ((gpointer) add_button, "clicked",
                     G_CALLBACK (on_add_button_clicked),
@@ -104,9 +98,6 @@ create_shellexec_conf_dialog (void)
   g_signal_connect ((gpointer) save_button, "clicked",
                     G_CALLBACK (on_save_button_clicked),
                     NULL);
-  g_signal_connect ((gpointer) cancel_button, "clicked",
-                    G_CALLBACK (on_cancel_button_clicked),
-                    NULL);
 
   /* Store pointers to all widgets, for use by lookup_widget(). */
   GLADE_HOOKUP_OBJECT_NO_REF (shellexec_conf_dialog, shellexec_conf_dialog, "shellexec_conf_dialog");
@@ -119,7 +110,6 @@ create_shellexec_conf_dialog (void)
   GLADE_HOOKUP_OBJECT (shellexec_conf_dialog, command_treeview, "command_treeview");
   GLADE_HOOKUP_OBJECT_NO_REF (shellexec_conf_dialog, dialog_action_area, "dialog_action_area");
   GLADE_HOOKUP_OBJECT (shellexec_conf_dialog, save_button, "save_button");
-  GLADE_HOOKUP_OBJECT (shellexec_conf_dialog, cancel_button, "cancel_button");
 
   return shellexec_conf_dialog;
 }
@@ -159,18 +149,18 @@ create_shellexec_conf_edit_dialog (void)
 
   table1 = gtk_table_new (3, 2, FALSE);
   gtk_widget_show (table1);
-  gtk_box_pack_start (GTK_BOX (dialog_vbox1), table1, TRUE, TRUE, 0);
+  gtk_box_pack_start (GTK_BOX (dialog_vbox1), table1, FALSE, TRUE, 0);
   gtk_table_set_row_spacings (GTK_TABLE (table1), 8);
   gtk_table_set_col_spacings (GTK_TABLE (table1), 8);
 
-  title_label = gtk_label_new (_("Title"));
+  title_label = gtk_label_new (_("Title:"));
   gtk_widget_show (title_label);
   gtk_table_attach (GTK_TABLE (table1), title_label, 0, 1, 1, 2,
                     (GtkAttachOptions) (GTK_FILL),
                     (GtkAttachOptions) (0), 0, 0);
   gtk_misc_set_alignment (GTK_MISC (title_label), 0, 0.5);
 
-  cmd_label = gtk_label_new (_("Shell Command"));
+  cmd_label = gtk_label_new (_("Shell Command:"));
   gtk_widget_show (cmd_label);
   gtk_table_attach (GTK_TABLE (table1), cmd_label, 0, 1, 2, 3,
                     (GtkAttachOptions) (GTK_FILL),
@@ -191,7 +181,7 @@ create_shellexec_conf_edit_dialog (void)
                     (GtkAttachOptions) (0), 0, 0);
   gtk_entry_set_invisible_char (GTK_ENTRY (cmd_entry), 8226);
 
-  name_label = gtk_label_new (_("Name"));
+  name_label = gtk_label_new (_("Name:"));
   gtk_widget_show (name_label);
   gtk_table_attach (GTK_TABLE (table1), name_label, 0, 1, 0, 1,
                     (GtkAttachOptions) (GTK_FILL),
@@ -243,33 +233,6 @@ create_shellexec_conf_edit_dialog (void)
   gtk_dialog_add_action_widget (GTK_DIALOG (shellexec_conf_edit_dialog), edit_ok_button, GTK_RESPONSE_OK);
   gtk_widget_set_can_default(edit_ok_button, TRUE);
 
-  g_signal_connect ((gpointer) name_entry, "changed",
-                    G_CALLBACK (validate_command_edit),
-                    NULL);
-  g_signal_connect ((gpointer) cmd_entry, "changed",
-                    G_CALLBACK (validate_command_edit),
-                    NULL);
-  g_signal_connect ((gpointer) title_entry, "changed",
-                    G_CALLBACK (validate_command_edit),
-                    NULL);
-  g_signal_connect ((gpointer) single_check, "toggled",
-                    G_CALLBACK (validate_command_edit),
-                    NULL);
-  g_signal_connect ((gpointer) multiple_check, "toggled",
-                    G_CALLBACK (validate_command_edit),
-                    NULL);
-  g_signal_connect ((gpointer) local_check, "toggled",
-                    G_CALLBACK (validate_command_edit),
-                    NULL);
-  g_signal_connect ((gpointer) remote_check, "toggled",
-                    G_CALLBACK (validate_command_edit),
-                    NULL);
-  g_signal_connect ((gpointer) playlist_check, "toggled",
-                    G_CALLBACK (validate_command_edit),
-                    NULL);
-  g_signal_connect ((gpointer) disabled_check, "toggled",
-                    G_CALLBACK (validate_command_edit),
-                    NULL);
   g_signal_connect ((gpointer) edit_cancel_button, "clicked",
                     G_CALLBACK (on_edit_cancel_button_clicked),
                     NULL);

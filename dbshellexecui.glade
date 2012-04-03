@@ -6,7 +6,7 @@
 <widget class="GtkDialog" id="shellexec_conf_dialog">
   <property name="border_width">12</property>
   <property name="visible">True</property>
-  <property name="title" translatable="yes">Shellexec Commands</property>
+  <property name="title" translatable="yes">Custom Shell Commands</property>
   <property name="type">GTK_WINDOW_TOPLEVEL</property>
   <property name="window_position">GTK_WIN_POS_NONE</property>
   <property name="modal">False</property>
@@ -37,26 +37,12 @@
 	      <property name="visible">True</property>
 	      <property name="can_default">True</property>
 	      <property name="can_focus">True</property>
-	      <property name="label" translatable="yes">Save</property>
-	      <property name="use_underline">True</property>
-	      <property name="relief">GTK_RELIEF_NORMAL</property>
-	      <property name="focus_on_click">True</property>
-	      <property name="response_id">0</property>
-	      <signal name="clicked" handler="on_save_button_clicked" last_modification_time="Sat, 28 Jan 2012 03:21:29 GMT"/>
-	    </widget>
-	  </child>
-
-	  <child>
-	    <widget class="GtkButton" id="cancel_button">
-	      <property name="visible">True</property>
-	      <property name="can_default">True</property>
-	      <property name="can_focus">True</property>
 	      <property name="label" translatable="yes">Close</property>
 	      <property name="use_underline">True</property>
 	      <property name="relief">GTK_RELIEF_NORMAL</property>
 	      <property name="focus_on_click">True</property>
 	      <property name="response_id">0</property>
-	      <signal name="clicked" handler="on_cancel_button_clicked" last_modification_time="Sat, 28 Jan 2012 10:54:36 GMT"/>
+	      <signal name="clicked" handler="on_save_button_clicked" last_modification_time="Sat, 28 Jan 2012 03:21:29 GMT"/>
 	    </widget>
 	  </child>
 	</widget>
@@ -245,7 +231,7 @@
 	  <child>
 	    <widget class="GtkLabel" id="title_label">
 	      <property name="visible">True</property>
-	      <property name="label" translatable="yes">Title</property>
+	      <property name="label" translatable="yes">Title:</property>
 	      <property name="use_underline">False</property>
 	      <property name="use_markup">False</property>
 	      <property name="justify">GTK_JUSTIFY_LEFT</property>
@@ -273,7 +259,7 @@
 	  <child>
 	    <widget class="GtkLabel" id="cmd_label">
 	      <property name="visible">True</property>
-	      <property name="label" translatable="yes">Shell Command</property>
+	      <property name="label" translatable="yes">Shell Command:</property>
 	      <property name="use_underline">False</property>
 	      <property name="use_markup">False</property>
 	      <property name="justify">GTK_JUSTIFY_LEFT</property>
@@ -309,7 +295,6 @@
 	      <property name="has_frame">True</property>
 	      <property name="invisible_char">•</property>
 	      <property name="activates_default">False</property>
-	      <signal name="changed" handler="validate_command_edit" last_modification_time="Sun, 01 Apr 2012 06:15:27 GMT"/>
 	    </widget>
 	    <packing>
 	      <property name="left_attach">1</property>
@@ -331,7 +316,6 @@
 	      <property name="has_frame">True</property>
 	      <property name="invisible_char">•</property>
 	      <property name="activates_default">False</property>
-	      <signal name="changed" handler="validate_command_edit" last_modification_time="Sun, 01 Apr 2012 06:18:04 GMT"/>
 	    </widget>
 	    <packing>
 	      <property name="left_attach">1</property>
@@ -345,7 +329,7 @@
 	  <child>
 	    <widget class="GtkLabel" id="name_label">
 	      <property name="visible">True</property>
-	      <property name="label" translatable="yes">Name</property>
+	      <property name="label" translatable="yes">Name:</property>
 	      <property name="use_underline">False</property>
 	      <property name="use_markup">False</property>
 	      <property name="justify">GTK_JUSTIFY_LEFT</property>
@@ -381,7 +365,6 @@
 	      <property name="has_frame">True</property>
 	      <property name="invisible_char">•</property>
 	      <property name="activates_default">False</property>
-	      <signal name="changed" handler="validate_command_edit" last_modification_time="Sun, 01 Apr 2012 06:15:27 GMT"/>
 	    </widget>
 	    <packing>
 	      <property name="left_attach">1</property>
@@ -394,7 +377,7 @@
 	</widget>
 	<packing>
 	  <property name="padding">0</property>
-	  <property name="expand">True</property>
+	  <property name="expand">False</property>
 	  <property name="fill">True</property>
 	</packing>
       </child>
@@ -410,7 +393,6 @@
 	  <property name="active">False</property>
 	  <property name="inconsistent">False</property>
 	  <property name="draw_indicator">True</property>
-	  <signal name="toggled" handler="validate_command_edit" last_modification_time="Sun, 01 Apr 2012 06:22:03 GMT"/>
 	</widget>
 	<packing>
 	  <property name="padding">0</property>
@@ -430,7 +412,6 @@
 	  <property name="active">False</property>
 	  <property name="inconsistent">False</property>
 	  <property name="draw_indicator">True</property>
-	  <signal name="toggled" handler="validate_command_edit" last_modification_time="Sun, 01 Apr 2012 06:31:20 GMT"/>
 	</widget>
 	<packing>
 	  <property name="padding">0</property>
@@ -450,7 +431,6 @@
 	  <property name="active">False</property>
 	  <property name="inconsistent">False</property>
 	  <property name="draw_indicator">True</property>
-	  <signal name="toggled" handler="validate_command_edit" last_modification_time="Sun, 01 Apr 2012 06:31:33 GMT"/>
 	</widget>
 	<packing>
 	  <property name="padding">0</property>
@@ -470,7 +450,6 @@
 	  <property name="active">False</property>
 	  <property name="inconsistent">False</property>
 	  <property name="draw_indicator">True</property>
-	  <signal name="toggled" handler="validate_command_edit" last_modification_time="Sun, 01 Apr 2012 06:31:45 GMT"/>
 	</widget>
 	<packing>
 	  <property name="padding">0</property>
@@ -490,7 +469,6 @@
 	  <property name="active">False</property>
 	  <property name="inconsistent">False</property>
 	  <property name="draw_indicator">True</property>
-	  <signal name="toggled" handler="validate_command_edit" last_modification_time="Sun, 01 Apr 2012 06:31:55 GMT"/>
 	</widget>
 	<packing>
 	  <property name="padding">0</property>
@@ -510,7 +488,6 @@
 	  <property name="active">False</property>
 	  <property name="inconsistent">False</property>
 	  <property name="draw_indicator">True</property>
-	  <signal name="toggled" handler="validate_command_edit" last_modification_time="Sun, 01 Apr 2012 06:32:07 GMT"/>
 	</widget>
 	<packing>
 	  <property name="padding">0</property>

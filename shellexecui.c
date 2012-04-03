@@ -21,6 +21,8 @@ static GtkWidget *conf_dlg;
 static GtkWidget *edit_dlg;
 static Shx_action_t *current_action; // selection action when edit window is active
 
+static int dirty = 0;
+
 enum {
     COL_TITLE = 0,
     COL_META,
@@ -51,23 +53,13 @@ is_empty(const char *name) {
     return 1;
 }
 
-static void
-disable_button(GtkWidget *parent, const char *button_name) {
-    GtkWidget *button = lookup_widget(parent, button_name);
-    gtk_widget_set_sensitive(button, FALSE);
-}
-
-static void
-enable_button(GtkWidget *parent, const char *button_name) {
-    GtkWidget *button = lookup_widget(parent, button_name);
-    gtk_widget_set_sensitive(button, TRUE);  
-}
-
 void
 on_save_button_clicked (GtkButton *button,
                           gpointer user_data) {
-    shellexec_plugin->shx_save_actions(actions);
-    disable_button(conf_dlg, "save_button");
+    if(dirty) {
+        shellexec_plugin->shx_save_actions(actions);
+    }
+    gtk_widget_destroy(conf_dlg);
 }
 
 GtkWidget *create_edit_dlg() {
@@ -107,7 +99,6 @@ on_add_button_clicked (GtkButton *button,
         GTK_TOGGLE_BUTTON(lookup_widget(edit_dlg, "local_check")),
         TRUE);
 
-    disable_button(edit_dlg, "edit_ok_button");
     gtk_widget_show(edit_dlg);
 }
 
@@ -166,14 +157,8 @@ on_remove_button_clicked (GtkButton *button,
         }
         gtk_list_store_remove(GTK_LIST_STORE(treemodel), &iter);
 
-        enable_button(conf_dlg, "save_button");
+        dirty = 1;
     }
-}
-
-void
-on_cancel_button_clicked (GtkButton *button,
-                          gpointer user_data) {
-    gtk_widget_destroy(conf_dlg);
 }
 
 void
@@ -216,7 +201,7 @@ on_edit_button_clicked(GtkButton *button, gpointer user_data) {
             GTK_TOGGLE_BUTTON(lookup_widget(edit_dlg, "remote_check")),
             current_action->shx_flags & SHX_ACTION_REMOTE_ONLY);
 
-        disable_button(edit_dlg, "edit_ok_button"); // OK button is disabled by default
+        //disable_button(edit_dlg, "edit_ok_button"); // OK button is disabled by default
         gtk_widget_show(edit_dlg);
     }
 }
@@ -226,36 +211,49 @@ on_edit_cancel_button_clicked (GtkButton *button, gpointer user_data) {
     gtk_widget_destroy(edit_dlg);
 }
 
-void
-validate_command_edit (GtkWidget *widget, gpointer user_data) {
+static int
+validate_command_edit () {
     const char *text;
+    char message[256] = "";
     int valid = 1;
 
     text = gtk_entry_get_text(GTK_ENTRY(lookup_widget(edit_dlg, "name_entry")));
     if(is_empty(text) || name_exists(text, current_action)) {
+        strcat(message, _("Name should be non-empty and unique\n"));
         valid = 0;
     }
 
     text = gtk_entry_get_text(GTK_ENTRY(lookup_widget(edit_dlg, "title_entry")));
     if(is_empty(text)) {
+        strcat(message, _("Title should be non-empty\n"));
         valid = 0;
     }
 
     text = gtk_entry_get_text(GTK_ENTRY(lookup_widget(edit_dlg, "cmd_entry")));
     if(is_empty(text)) {
+        strcat(message, _("Shell Command should be non-empty\n"));
         valid = 0;
     }
 
-    if(valid) {
-        enable_button(edit_dlg, "edit_ok_button");
+    if(!valid) {
+        GtkWidget *invalid_dlg = gtk_message_dialog_new (GTK_WINDOW(conf_dlg), GTK_DIALOG_MODAL,
+                                                         GTK_MESSAGE_WARNING, GTK_BUTTONS_OK,
+                                                         _("Invalid Values"));
+        gtk_message_dialog_format_secondary_text (GTK_MESSAGE_DIALOG (invalid_dlg),
+                                                  message);
+        gtk_window_set_transient_for(GTK_WINDOW (invalid_dlg), GTK_WINDOW (conf_dlg));
+        gtk_window_set_title (GTK_WINDOW (invalid_dlg), _("Invalid Values"));
+        gtk_dialog_run (GTK_DIALOG (invalid_dlg));
+        gtk_widget_destroy(invalid_dlg);
     }
-    else {
-        disable_button(edit_dlg, "edit_ok_button");
-    }
+    return valid;
 }
 
 void
 on_edit_ok_button_clicked (GtkButton *button, gpointer user_data) {
+    if(!validate_command_edit()) {
+        return;
+    }
     // Update the main window tree view
     GtkTreeView *treeview = GTK_TREE_VIEW(lookup_widget(conf_dlg, "command_treeview"));
     GtkTreeModel *treemodel = gtk_tree_view_get_model(treeview);
@@ -317,7 +315,8 @@ on_edit_ok_button_clicked (GtkButton *button, gpointer user_data) {
     edit_dlg = NULL;
     current_action = NULL;
 
-    enable_button(conf_dlg, "save_button");
+    dirty = 1;
+    //enable_button(conf_dlg, "save_button");
 }
 
 static void
@@ -354,16 +353,17 @@ static int
 shellexecui_action_callback(DB_plugin_action_t *action,
                                 void *user_data) {
     conf_dlg = create_shellexec_conf_dialog();
+    dirty = 0;
     gtk_window_set_transient_for(GTK_WINDOW(conf_dlg),
                                  GTK_WINDOW(gtkui_plugin->get_mainwin()));
     init_treeview();
-    disable_button(conf_dlg, "save_button");
+    //disable_button(conf_dlg, "save_button");
     gtk_widget_show(conf_dlg);
     return 0;
 }
 
 static DB_plugin_action_t shellexecui_action = {
-    .title = "Edit/Shellexec Commands",
+    .title = "Plugins/Custom shell commands",
     .name = "shellexec_conf",
     .flags = DB_ACTION_COMMON,
     .callback = shellexecui_action_callback,
@@ -383,6 +383,10 @@ int shxui_connect() {
 #endif
     shellexec_plugin = (Shx_plugin_t *)deadbeef->plug_get_for_id ("shellexec");
     if(!gtkui_plugin || !shellexec_plugin) {
+        return -1;
+    }
+    if(shellexec_plugin->misc.plugin.version_major == 1 &&
+       shellexec_plugin->misc.plugin.version_minor < 1) {
         return -1;
     }
     return 0;
