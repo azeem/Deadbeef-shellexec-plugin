@@ -363,7 +363,7 @@ shellexecui_action_callback(DB_plugin_action_t *action,
 }
 
 static DB_plugin_action_t shellexecui_action = {
-    .title = _("Edit/Shellexec Commands"),
+    .title = "Edit/Shellexec Commands",
     .name = "shellexec_conf",
     .flags = DB_ACTION_COMMON,
     .callback = shellexecui_action_callback,
